@@ -1,0 +1,39 @@
+/* Troque a fonte aqui (ex.: 'IBM Plex Mono', 'Space Mono') */
+:root{--bg:#0a0c0a;--fg:#f2f2f2;--font:'VT323','IBM Plex Mono',monospace}
+*{box-sizing:border-box;margin:0}
+html,body{height:100%;overflow:hidden}
+body{background-color:var(--bg);color:var(--fg);font:22px/1.4 var(--font);text-shadow:0 0 6px rgba(255,255,255,.45);transition:background-color 4s,color 4s}
+body.paper{--bg:#ece6d6;--fg:#1a1a1a;text-shadow:none}
+[hidden]{display:none!important}
+.crt{position:fixed;inset:0;z-index:99;pointer-events:none;transition:opacity 4s;
+ background:repeating-linear-gradient(0deg,rgba(0,0,0,.22) 0 1px,transparent 1px 3px),radial-gradient(ellipse at center,transparent 60%,rgba(0,0,0,.55))}
+body.paper .crt{opacity:0}
+@keyframes fl{0%,100%{opacity:1}50%{opacity:.94}}
+.view{position:fixed;inset:0;display:flex;flex-direction:column;animation:fl 5s infinite}
+.scroller{display:flex;flex:1;align-items:center;overflow-x:auto;overflow-y:hidden;scrollbar-width:none}
+.scroller::-webkit-scrollbar{display:none}
+.scroller::before,.scroller::after{content:"";flex:none;width:12vw}
+.hint{text-align:center;padding:28px 16px 0;opacity:.7;letter-spacing:.15em}
+#loader{position:fixed;inset:0;z-index:50;background:#000;transition:opacity 1s}
+#gl{width:100%;height:100%;display:block}
+#pct{position:absolute;bottom:7%;width:100%;text-align:center;font-size:34px}
+.tape{flex:none;position:relative;width:min(72vw,340px);height:210px;margin:0 28px;background:#141814;border:2px solid var(--fg);border-radius:8px;color:inherit;font:inherit;font-size:30px;cursor:pointer;transition:transform .3s,box-shadow .3s}
+.tape:hover,.tape:focus-visible{transform:translateY(-10px) rotate(-1deg);box-shadow:0 0 24px rgba(255,255,255,.35);outline:none}
+.tape::before,.tape::after{content:"";position:absolute;bottom:20px;width:46px;height:46px;border:2px solid var(--fg);border-radius:50%}
+.tape::before{left:18%}.tape::after{right:18%}
+.tape span{position:absolute;top:22px;left:50%;transform:translateX(-50%);padding:6px 16px;background:var(--fg);color:var(--bg);text-shadow:none;white-space:nowrap}
+.hud{position:absolute;top:0;left:0;right:0;z-index:5;display:flex;justify-content:space-between;padding:16px 24px;letter-spacing:.15em}
+.scene{flex:none;display:flex;flex-direction:column;justify-content:center;width:100vw;height:100%;padding:12vh 10vw}
+.scene h2{font-size:clamp(40px,8vw,96px);font-weight:400;letter-spacing:.05em;line-height:1.05}
+.scene p{max-width:34ch;margin-top:16px;font-size:clamp(22px,3vw,34px)}
+.counters{display:flex;flex-wrap:wrap;gap:6vh 8vw}
+.counters b{display:block;font-size:clamp(64px,14vw,160px);font-weight:400;line-height:1}
+.end svg{width:min(60vw,300px);fill:none;stroke:var(--fg);stroke-width:2;margin-bottom:12px}
+.end .tr{stroke-dasharray:1;stroke-dashoffset:1}
+body.paper .end .tr{animation:draw 3.5s ease forwards}
+@keyframes draw{to{stroke-dashoffset:0}}
+.end .res{min-height:4.2em}
+.end button{align-self:flex-start;margin-top:20px;padding:8px 20px;background:none;border:2px solid var(--fg);color:inherit;font:inherit;cursor:pointer;opacity:0;pointer-events:none;transition:opacity 1s 3s}
+body.paper .end button{opacity:1;pointer-events:auto}
+.end button:focus-visible{outline:2px solid var(--fg);outline-offset:3px}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition-duration:.01s!important;transition-delay:0s!important}.end .tr{stroke-dashoffset:0}.crt{display:none}}

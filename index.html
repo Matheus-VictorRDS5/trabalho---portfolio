@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Portfólio · Fitas VHS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="loader"><canvas id="gl"></canvas><div id="pct">0%</div></div>
+<main id="shelf" class="view" hidden>
+  <p class="hint">&larr; role para escolher uma fita &rarr;</p>
+  <div class="scroller" id="tapes"></div>
+</main>
+<main id="tape" class="view" hidden>
+  <header class="hud"><span id="uptime">00:00:00</span><span id="clock">--:--</span></header>
+  <div class="scroller" id="scenes"></div>
+</main>
+<div class="crt"></div>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+<script src="js/data.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
