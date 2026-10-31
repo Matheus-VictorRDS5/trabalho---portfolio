@@ -14,22 +14,117 @@ document.querySelectorAll('.scroller').forEach(el => el.addEventListener('wheel'
   if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) { e.preventDefault(); el.scrollLeft += e.deltaY; }
 }, { passive: false }));
 addEventListener('keydown', e => {
+  if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+  if (!$('#shelf').hidden) { step(e.key === 'ArrowRight' ? 1 : -1); return; }
   const v = document.querySelector('.view:not([hidden]) .scroller');
-  if (v && (e.key === 'ArrowRight' || e.key === 'ArrowLeft'))
-    v.scrollBy({ left: (e.key === 'ArrowRight' ? 1 : -1) * innerWidth * .5, behavior: 'smooth' });
+  if (v) v.scrollBy({ left: (e.key === 'ArrowRight' ? 1 : -1) * innerWidth * .5, behavior: 'smooth' });
 });
-const show = id => document.querySelectorAll('.view').forEach(v => v.hidden = ('#' + v.id) !== id);
+const show = id => {
+  document.querySelectorAll('.view').forEach(v => v.hidden = ('#' + v.id) !== id);
+  if (id === '#shelf') { sync(); render(); }
+};
 
-/* ---------- Seleção de fitas ---------- */
-FITAS.forEach(f => {
+/* ---------- Seleção de fitas: carrossel 3D em arco ---------- */
+const stage = $('#tapes'), selName = $('#selname'), N = FITAS.length;
+const NO_MOTION = matchMedia('(prefers-reduced-motion: reduce)');
+const GLOBE = '<svg viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="17"/><ellipse cx="20" cy="20" rx="7" ry="17"/><path d="M3 20h34M6 11h28M6 29h28"/></svg>';
+let pos = 0, tgt = 0, raf = 0, idle = 0, dragged = false, drag = null, shown = -1;
+const wrap = v => ((v + N / 2) % N + N) % N - N / 2;   // distância circular: de -N/2 a N/2
+const off = i => wrap(i - pos);
+const els = FITAS.map((f, i) => {
   const b = document.createElement('button');
-  b.className = 'tape'; b.innerHTML = `<span>${f.etiqueta}</span>`;
-  b.onclick = () => openTape(f); $('#tapes').append(b);
+  b.className = 'tape'; b.style.setProperty('--c', f.cor || '#dddddd'); b.setAttribute('aria-label', f.etiqueta);
+  const art = f.imagem
+    ? `<span class="art"><img src="${f.imagem}" alt="" draggable="false"></span>`
+    : `<span class="art gen"><span class="gt">${f.etiqueta}</span></span>`;
+  b.innerHTML = `<span class="sleeve"><span class="hv">Home Video</span>${art}<span class="ft"><b class="vhs">VHS</b><i class="yr">${f.ano || ''}</i>${GLOBE}</span></span>`;
+  b.onclick = () => { if (dragged) return; if (Math.abs(off(i)) < .5) openTape(f); else go(i); };
+  stage.append(b); return b;
 });
+function render() {
+  const W = els[0].offsetWidth, H = els[0].offsetHeight;
+  if (!W) return;                                    // vista escondida
+  els.forEach((el, i) => {
+    const o = off(i), a = Math.abs(o);
+    const x = o * 1.36 * W, y = H * .06 * Math.pow(a, 1.5), z = -a * .3 * W;
+    const ry = Math.max(-48, Math.min(48, -o * 26)), rz = o * 6;
+    el.style.transform = `translate3d(${x}px,${y}px,${z}px) rotateZ(${rz}deg) rotateY(${ry}deg)`;
+    el.style.opacity = Math.max(0, Math.min(1, (2.5 - a) * 2));
+    el.style.filter = `brightness(${Math.max(.18, 1 - .34 * a)}) saturate(${Math.max(.45, 1 - .4 * Math.min(a, 1.5))})`;
+    el.style.zIndex = 100 - Math.round(a * 10);
+    el.style.pointerEvents = a > 2.2 ? 'none' : '';
+    el.classList.toggle('on', a < .5);
+  });
+}
+function sync() {                                     // nome embaixo + foco na fita central
+  const cur = ((Math.round(tgt) % N) + N) % N;
+  if (cur === shown) return; shown = cur;
+  selName.textContent = FITAS[cur].etiqueta;
+  els.forEach((el, i) => el.tabIndex = i === cur ? 0 : -1);
+}
+function loop() {
+  const d = tgt - pos;
+  if (Math.abs(d) < .001) { pos = tgt; render(); raf = 0; return; }
+  pos += NO_MOTION.matches ? d : d * .14; render(); raf = requestAnimationFrame(loop);
+}
+const kick = () => { if (!raf) raf = requestAnimationFrame(loop); };
+const step = d => { tgt = Math.round(tgt) + d; sync(); kick(); };
+const go = i => { tgt += wrap(i - tgt); sync(); kick(); };
+$('.prev').onclick = () => step(-1); $('.next').onclick = () => step(1);
+$('#shelf').addEventListener('wheel', e => {          // roda do mouse / trackpad
+  e.preventDefault();
+  let d = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
+  if (e.deltaMode === 1) d *= 40;                    // Firefox pode mandar em linhas
+  tgt += Math.max(-1, Math.min(1, d / 140)); sync(); kick();
+  clearTimeout(idle); idle = setTimeout(() => { tgt = Math.round(tgt); sync(); kick(); }, 140);
+}, { passive: false });
+stage.addEventListener('pointerdown', e => { if (e.target.closest('.nav')) return; drag = { x: e.clientX, t: tgt }; dragged = false; });
+addEventListener('pointermove', e => {                // arrastar
+  if (!drag) return;
+  const dx = e.clientX - drag.x;
+  if (Math.abs(dx) > 6) { dragged = true; stage.classList.add('drag'); }
+  if (dragged) { tgt = drag.t - dx / (els[0].offsetWidth * 1.1); sync(); kick(); }
+});
+addEventListener('pointerup', () => {
+  if (!drag) return;
+  const was = dragged; drag = null; stage.classList.remove('drag');
+  if (was) { tgt = Math.round(tgt); sync(); kick(); setTimeout(() => dragged = false, 60); }
+});
+addEventListener('resize', render);
 
 /* ---------- Dentro da fita ---------- */
 const END_SVG = `<svg viewBox="0 0 400 250" aria-hidden="true"><rect class="tr" pathLength="1" x="10" y="10" width="380" height="230" rx="10"/><rect class="tr" pathLength="1" x="40" y="30" width="320" height="70"/><rect class="tr" pathLength="1" x="60" y="120" width="280" height="90" rx="45"/><circle class="tr" pathLength="1" cx="130" cy="165" r="26"/><circle class="tr" pathLength="1" cx="270" cy="165" r="26"/><path class="tr" pathLength="1" d="M130 191 L270 191 M100 240 L120 215 M300 240 L280 215"/></svg>`;
-const add = (html, cls = '') => { const e = document.createElement('section'); e.className = 'scene ' + cls; e.innerHTML = html; $('#scenes').append(e); return e; };
+const add = (html, cls = '', anim = '') => {
+  const e = document.createElement('section'); e.className = 'scene ' + cls; e.innerHTML = html;
+  if (anim) { e.dataset.anim = anim; e.querySelectorAll('h2,p').forEach(n => n.dataset.t = n.textContent); }
+  $('#scenes').append(e); return e;
+};
+
+/* ---------- Textos animados: digitação + efeito de VHS ---------- */
+const ESTILOS = ['combinado', 'vhs', 'combinado', 'digitacao'];   // usado quando a cena não define "animacao"
+function typeInto(el, ms, done) {
+  const txt = el.dataset.t;
+  if (NO_MOTION.matches) { el.textContent = txt; done(); return; }
+  el.innerHTML = '<span class="on"></span><span class="off"></span>';
+  const on = el.firstChild, rest = el.lastChild; rest.textContent = txt; let i = 0;
+  const id = setInterval(() => {
+    i++; on.textContent = txt.slice(0, i); rest.textContent = txt.slice(i);
+    if (i >= txt.length) { clearInterval(id); el.textContent = txt; done(); }
+  }, ms);
+}
+function animate(sc) {
+  if (!sc.dataset.anim || sc.dataset.d) return; sc.dataset.d = 1;
+  const style = sc.dataset.anim, parts = [...sc.querySelectorAll('[data-t]')];
+  const typed = style !== 'vhs', glitch = style !== 'digitacao' && !NO_MOTION.matches;
+  (function run(i) {
+    if (i >= parts.length) return;
+    const el = parts[i], next = () => setTimeout(() => run(i + 1), 150);
+    const end = () => { if (glitch) { el.classList.remove('glitch'); el.classList.add('settle'); } next(); };
+    el.classList.add('seen'); if (glitch) el.classList.add('glitch');
+    if (typed) typeInto(el, el.tagName === 'H2' ? 45 : 16, end);
+    else setTimeout(end, 650);
+  })(0);
+}
 function count(b) {
   if (b.dataset.d) return; b.dataset.d = 1;
   const v = +b.dataset.v, t0 = performance.now();
@@ -45,15 +140,15 @@ const io = new IntersectionObserver(es => es.forEach(e => {
   if (el.classList.contains('end')) {
     document.body.classList.toggle('paper', e.isIntersecting);
     if (e.isIntersecting) type(el.querySelector('.res'));
-  } else if (e.isIntersecting) el.querySelectorAll('[data-v]').forEach(count);
+  } else if (e.isIntersecting) { animate(el); el.querySelectorAll('[data-v]').forEach(count); }
 }), { threshold: .6 });
 
 function openTape(f) {
   io.disconnect(); $('#scenes').innerHTML = '';
-  add(`<h2>${f.etiqueta}</h2><p>role para o lado &rarr;</p>`);
-  f.cenas.forEach(c => add(c.tipo === 'contador'
-    ? `<div class="counters">${c.itens.map(i => `<div><b data-v="${i.valor}">0</b>${i.rotulo}</div>`).join('')}</div>`
-    : `<h2>${c.titulo}</h2><p>${c.texto}</p>`));
+  add(`<h2>${f.etiqueta}</h2><p>role para o lado &rarr;</p>`, '', 'combinado');
+  f.cenas.forEach((c, n) => c.tipo === 'contador'
+    ? add(`<div class="counters">${c.itens.map(i => `<div><b data-v="${i.valor}">0</b>${i.rotulo}</div>`).join('')}</div>`)
+    : add(`<h2>${c.titulo}</h2><p>${c.texto}</p>`, '', c.animacao || ESTILOS[(n + 1) % ESTILOS.length]));
   const end = add(`${END_SVG}<h2>FIM DA FITA</h2><p class="res"></p><button>${f.botao_final || 'VOLTAR ÀS FITAS'}</button>`, 'end');
   end.querySelector('.res').dataset.t = f.resumo_final;
   end.querySelector('button').onclick = () => { document.body.classList.remove('paper'); show('#shelf'); };
